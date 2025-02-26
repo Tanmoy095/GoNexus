@@ -10,6 +10,6 @@ func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
 		Message: "success",
 		Data:    "broker response",
 	}
-	_ = app.writeJson(w, http.StatusOK, payload).
+	_ = app.writeJson(w, http.StatusOK, payload)
 
 }
