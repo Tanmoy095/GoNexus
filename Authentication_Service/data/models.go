@@ -14,9 +14,9 @@ type Models struct {
 	User User
 }
 
-func NewModels(dbpool *sql.DB) *Models {
+func NewModels(dbpool *sql.DB) Models {
 	db = dbpool
-	return &Models{
+	return Models{
 		User: User{},
 	}
 }
