@@ -3,7 +3,10 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const dbTimeOut = 60 * time.Second
@@ -242,4 +245,73 @@ func (u *User) DeleteUserByID(id int) error {
 
 	// If the operation is successful, return nil.
 	return nil
+}
+
+// ....
+// Insert inserts a new user into the database, and returns the ID of the newly inserted row
+func (u *User) Insert(user User) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeOut)
+	defer cancel()
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 12)
+	if err != nil {
+		return 0, err
+	}
+
+	var newID int
+	stmt := `insert into users (email, first_name, last_name, password, user_active, created_at, updated_at)
+		values ($1, $2, $3, $4, $5, $6, $7) returning id`
+
+	err = db.QueryRowContext(ctx, stmt,
+		user.Email,
+		user.FirstName,
+		user.LastName,
+		hashedPassword,
+		user.Active,
+		time.Now(),
+		time.Now(),
+	).Scan(&newID)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return newID, nil
+}
+
+// ResetPassword is the method we will use to change a user's password.
+func (u *User) ResetPassword(password string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeOut)
+	defer cancel()
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return err
+	}
+
+	stmt := `update users set password = $1 where id = $2`
+	_, err = db.ExecContext(ctx, stmt, hashedPassword, u.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PasswordMatches uses Go's bcrypt package to compare a user supplied password
+// with the hash we have stored for a given user in the database. If the password
+// and hash match, we return true; otherwise, we return false.
+func (u *User) PasswordMatches(plainText string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(plainText))
+	if err != nil {
+		switch {
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+			// invalid password
+			return false, nil
+		default:
+			return false, err
+		}
+	}
+
+	return true, nil
 }
