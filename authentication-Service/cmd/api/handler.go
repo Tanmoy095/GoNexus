@@ -6,10 +6,11 @@ import (
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
-	var requestPayload struct {
+	type RequestPayload struct {
 		Email    string `json:"email"`
 		password string `json:"password"`
 	}
+	var requestPayload RequestPayload
 	err := app.readJson(w, r, &requestPayload)
 	if err != nil {
 		app.errorJSON(w, err, http.StatusBadRequest)
